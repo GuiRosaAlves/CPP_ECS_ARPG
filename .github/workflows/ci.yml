@@ -1,38 +1,94 @@
 name: ci
-
 on:
   push:
+    branches: [main, ci-test]
   pull_request:
-
+    branches: [main]
 jobs:
   build-test:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-2022]
+        include:
+          # Linux builds (GCC + Clang)
+          - os: ubuntu-latest
+            cxx: g++
+            cc: gcc
+          - os: ubuntu-latest
+            cxx: clang++
+            cc: clang
+
+          # Windows build (MSVC)
+          - os: windows-2022
+            cxx: cl
+            cc: cl
 
     runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v4
 
+      # Ninja is not guaranteed everywhere; install it explicitly.
+      - name: Setup Ninja
+        uses: seanmiddleditch/gha-setup-ninja@v5
+
+      # CMake is already available on GitHub-hosted runners, but keeping your step is fine.
       - name: Setup CMake
         uses: jwlawson/actions-setup-cmake@v2
-      # This action is specifically for ensuring CMake is available in PATH. :contentReference[oaicite:2]{index=2}
 
-      - name: Configure
+      # Linux: install compilers (needed for clang job)
+      - name: Install Linux toolchain
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          if [ "${{ matrix.cc }}" = "clang" ]; then
+            sudo apt-get install -y clang
+          else
+            sudo apt-get install -y gcc g++
+          fi
+
+      # Windows: initialize MSVC environment (sets cl/link/lib paths)
+      - name: Setup MSVC Dev Cmd
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      # Configure
+      - name: Configure (Linux)
+        if: runner.os == 'Linux'
         shell: bash
         run: |
-          cmake -S . -B out/build/ci -G Ninja \
+          cmake -S . -B build/ci -G Ninja \
             -DGS_ENABLE_TESTS=ON \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=${{ matrix.cc }} \
+            -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
+
+      - name: Configure (Windows / MSVC)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cmake -S . -B build/ci -G Ninja `
+            -DGS_ENABLE_TESTS=ON `
             -DCMAKE_BUILD_TYPE=Release
 
+      # Build (single-config Ninja => no --config)
       - name: Build
         shell: bash
-        run: |
-          cmake --build out/build/ci --config Release
+        if: runner.os == 'Linux'
+        run: cmake --build build/ci
 
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: cmake --build build/ci
+
+      # Test
       - name: Test
+        if: runner.os == 'Linux'
         shell: bash
-        run: |
-          ctest --test-dir out/build/ci --output-on-failure
+        run: ctest --test-dir build/ci --output-on-failure
+
+      - name: Test (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ctest --test-dir build/ci --output-on-failure
