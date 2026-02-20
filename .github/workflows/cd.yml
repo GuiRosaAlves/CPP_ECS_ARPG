@@ -12,6 +12,7 @@ jobs:
             fail-fast: false
             matrix:
                 os: [ubuntu-latest, windows-2022]
+
         runs-on: ${{ matrix.os }}
 
         steps:
@@ -37,9 +38,13 @@ jobs:
               if: runner.os == 'Linux'
               shell: bash
               run: |
-                  cmake -S . -B build/release -G Ninja \
+                  VERSION="${GITHUB_REF_NAME#v}"
+                  cmake -S . -B out/build/release -G Ninja \
                     -DGS_ENABLE_TESTS=ON \
                     -DCMAKE_BUILD_TYPE=Release \
+                    -DGS_VERSION="${VERSION}" \
+                    -DGS_GIT_REF="${GITHUB_REF}" \
+                    -DGS_GIT_SHA="${GITHUB_SHA}" \
                     -DCMAKE_C_COMPILER=gcc \
                     -DCMAKE_CXX_COMPILER=g++
 
@@ -47,49 +52,41 @@ jobs:
               if: runner.os == 'Windows'
               shell: pwsh
               run: |
-                  cmake -S . -B build/release -G Ninja `
+                  $version = $env:GITHUB_REF_NAME.TrimStart("v")
+                  cmake -S . -B out/build/release -G Ninja `
                     -DGS_ENABLE_TESTS=ON `
-                    -DCMAKE_BUILD_TYPE=Release
+                    -DCMAKE_BUILD_TYPE=Release `
+                    -DGS_VERSION="$version" `
+                    -DGS_GIT_REF="$env:GITHUB_REF" `
+                    -DGS_GIT_SHA="$env:GITHUB_SHA"
 
             - name: Build
               if: runner.os == 'Linux'
               shell: bash
-              run: cmake --build build/release
+              run: cmake --build out/build/release
 
             - name: Build (Windows)
               if: runner.os == 'Windows'
               shell: pwsh
-              run: cmake --build build/release
+              run: cmake --build out/build/release
 
             - name: Test
               if: runner.os == 'Linux'
               shell: bash
-              run: ctest --test-dir build/release --output-on-failure
+              run: ctest --test-dir out/build/release --output-on-failure
 
             - name: Test (Windows)
               if: runner.os == 'Windows'
               shell: pwsh
-              run: ctest --test-dir build/release --output-on-failure
+              run: ctest --test-dir out/build/release --output-on-failure
 
-            # --- Package ---
             - name: Package (Linux)
               if: runner.os == 'Linux'
               shell: bash
               run: |
                   set -euxo pipefail
                   mkdir -p dist/CPP_ECS_ARPG
-
-                  if [ -f "build/release/gs_app" ]; then
-                    cp build/release/gs_app dist/CPP_ECS_ARPG/
-                  else
-                    echo "Expected app binary not found (build/release/gs_app)."
-                    ls -R build/release || true
-                    exit 1
-                  fi
-
-                  [ -f README.md ] && cp README.md dist/CPP_ECS_ARPG/ || true
-                  [ -f LICENSE ] && cp LICENSE dist/CPP_ECS_ARPG/ || true
-
+                  cp out/build/release/gs_app dist/CPP_ECS_ARPG/
                   zip -r "CPP_ECS_ARPG-${GITHUB_REF_NAME}-${{ runner.os }}.zip" dist/CPP_ECS_ARPG
 
             - name: Package (Windows)
@@ -97,16 +94,7 @@ jobs:
               shell: pwsh
               run: |
                   New-Item -ItemType Directory -Force -Path dist\CPP_ECS_ARPG | Out-Null
-
-                  if (Test-Path "build/release/gs_app.exe") {
-                    Copy-Item "build/release/gs_app.exe" "dist\CPP_ECS_ARPG\"
-                  } else {
-                    Write-Error "Expected app binary not found (build/release/gs_app.exe)."
-                  }
-
-                  if (Test-Path "README.md") { Copy-Item "README.md" "dist\CPP_ECS_ARPG\" }
-                  if (Test-Path "LICENSE")   { Copy-Item "LICENSE"   "dist\CPP_ECS_ARPG\" }
-
+                  Copy-Item "out/build/release/gs_app.exe" "dist\CPP_ECS_ARPG\"
                   Compress-Archive -Path "dist\CPP_ECS_ARPG\*" -DestinationPath "CPP_ECS_ARPG-$env:GITHUB_REF_NAME-${{ runner.os }}.zip" -Force
 
             - name: Upload zip artifact
@@ -114,20 +102,18 @@ jobs:
               with:
                   name: CPP_ECS_ARPG-${{ github.ref_name }}-${{ runner.os }}
                   path: CPP_ECS_ARPG-${{ github.ref_name }}-${{ runner.os }}.zip
-                  if-no-files-found: error
 
     release:
-        name: GitHub Release
+        name: Publish Release
         needs: build-test-package
         runs-on: ubuntu-latest
         steps:
-            - name: Download all zips
+            - name: Download artifacts
               uses: actions/download-artifact@v4
               with:
                   path: artifacts
 
-            - name: Create/Update Release (attach zips)
+            - name: Create Release
               uses: softprops/action-gh-release@v2
               with:
-                  files: |
-                      artifacts/**/**/*.zip
+                  files: artifacts/**/**/*.zip

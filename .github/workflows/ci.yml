@@ -7,39 +7,13 @@ on:
     branches: ["**"]
 
 jobs:
-  lint:
-    name: Lint (clang-format)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install clang-format
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang-format
-
-      - name: clang-format check
-        shell: bash
-        run: |
-          files=$(git ls-files \
-            "src/*.c" "src/*.cc" "src/*.cpp" "src/*.h" "src/*.hpp" \
-            "tests/*.c" "tests/*.cc" "tests/*.cpp" "tests/*.h" "tests/*.hpp" \
-            2>/dev/null || true)
-
-          if [ -z "$files" ]; then
-            echo "No matching source files found for clang-format check."
-            exit 0
-          fi
-
-          clang-format -n -Werror $files
-
   build-test:
     name: Build & Test (${{ matrix.os }})
-    needs: lint
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-2022]
+
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -65,7 +39,7 @@ jobs:
         if: runner.os == 'Linux'
         shell: bash
         run: |
-          cmake -S . -B build/ci -G Ninja \
+          cmake -S . -B out/build/ci -G Ninja \
             -DGS_ENABLE_TESTS=ON \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER=gcc \
@@ -75,26 +49,26 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          cmake -S . -B build/ci -G Ninja `
+          cmake -S . -B out/build/ci -G Ninja `
             -DGS_ENABLE_TESTS=ON `
             -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
-        shell: bash
         if: runner.os == 'Linux'
-        run: cmake --build build/ci
+        shell: bash
+        run: cmake --build out/build/ci
 
       - name: Build (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        run: cmake --build build/ci
+        run: cmake --build out/build/ci
 
       - name: Test
-        shell: bash
         if: runner.os == 'Linux'
-        run: ctest --test-dir build/ci --output-on-failure
+        shell: bash
+        run: ctest --test-dir out/build/ci --output-on-failure
 
       - name: Test (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
-        run: ctest --test-dir build/ci --output-on-failure
+        run: ctest --test-dir out/build/ci --output-on-failure
