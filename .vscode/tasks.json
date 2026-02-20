@@ -1,0 +1,21 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build (CMake Preset)",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build", "--preset", "win-debug"],
+      "group": "build",
+      "problemMatcher": ["$gcc"]
+    },
+    {
+      "label": "Run",
+      "type": "shell",
+      "command": "${workspaceFolder}/build/win-debug/myproj.exe",
+      "dependsOn": ["Build (CMake Preset)"],
+      "group": "test",
+      "problemMatcher": []
+    }
+  ]
+}

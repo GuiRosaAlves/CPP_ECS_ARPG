@@ -1,0 +1,91 @@
+########################################
+# Build directories
+########################################
+
+build/
+out/
+cmake-build-*/
+
+########################################
+# CMake
+########################################
+
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+CTestTestfile.cmake
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+
+########################################
+# Ninja
+########################################
+
+.ninja_deps
+.ninja_log
+
+########################################
+# MSVC / Visual Studio
+########################################
+
+*.obj
+*.pdb
+*.ilk
+*.idb
+*.vcxproj*
+*.sln
+*.aps
+*.ncb
+*.opendb
+*.sdf
+*.cache
+*.tlog/
+
+########################################
+# Executables / Binaries
+########################################
+
+*.exe
+*.out
+*.app
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+
+########################################
+# Debug / profiling
+########################################
+
+*.log
+*.stackdump
+*.dSYM/
+*.gcda
+*.gcno
+*.gcov
+
+########################################
+# vcpkg
+########################################
+
+vcpkg_installed/
+installed/
+*.user
+
+########################################
+# VS Code
+########################################
+
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+########################################
+# OS files
+########################################
+
+.DS_Store
+Thumbs.db
