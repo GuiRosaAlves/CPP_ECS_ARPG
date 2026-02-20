@@ -1,0 +1,133 @@
+name: cd
+
+on:
+    push:
+        tags:
+            - "v*"
+
+jobs:
+    build-test-package:
+        name: Build/Test/Package (${{ matrix.os }})
+        strategy:
+            fail-fast: false
+            matrix:
+                os: [ubuntu-latest, windows-2022]
+        runs-on: ${{ matrix.os }}
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Setup Ninja
+              uses: seanmiddleditch/gha-setup-ninja@v5
+
+            - name: Setup CMake
+              uses: jwlawson/actions-setup-cmake@v2
+
+            - name: Install Linux toolchain
+              if: runner.os == 'Linux'
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y gcc g++ zip
+
+            - name: Setup MSVC Dev Cmd
+              if: runner.os == 'Windows'
+              uses: ilammy/msvc-dev-cmd@v1
+
+            - name: Configure (Linux / GCC)
+              if: runner.os == 'Linux'
+              shell: bash
+              run: |
+                  cmake -S . -B build/release -G Ninja \
+                    -DGS_ENABLE_TESTS=ON \
+                    -DCMAKE_BUILD_TYPE=Release \
+                    -DCMAKE_C_COMPILER=gcc \
+                    -DCMAKE_CXX_COMPILER=g++
+
+            - name: Configure (Windows / MSVC)
+              if: runner.os == 'Windows'
+              shell: pwsh
+              run: |
+                  cmake -S . -B build/release -G Ninja `
+                    -DGS_ENABLE_TESTS=ON `
+                    -DCMAKE_BUILD_TYPE=Release
+
+            - name: Build
+              if: runner.os == 'Linux'
+              shell: bash
+              run: cmake --build build/release
+
+            - name: Build (Windows)
+              if: runner.os == 'Windows'
+              shell: pwsh
+              run: cmake --build build/release
+
+            - name: Test
+              if: runner.os == 'Linux'
+              shell: bash
+              run: ctest --test-dir build/release --output-on-failure
+
+            - name: Test (Windows)
+              if: runner.os == 'Windows'
+              shell: pwsh
+              run: ctest --test-dir build/release --output-on-failure
+
+            # --- Package ---
+            - name: Package (Linux)
+              if: runner.os == 'Linux'
+              shell: bash
+              run: |
+                  set -euxo pipefail
+                  mkdir -p dist/CPP_ECS_ARPG
+
+                  if [ -f "build/release/gs_app" ]; then
+                    cp build/release/gs_app dist/CPP_ECS_ARPG/
+                  else
+                    echo "Expected app binary not found (build/release/gs_app)."
+                    ls -R build/release || true
+                    exit 1
+                  fi
+
+                  [ -f README.md ] && cp README.md dist/CPP_ECS_ARPG/ || true
+                  [ -f LICENSE ] && cp LICENSE dist/CPP_ECS_ARPG/ || true
+
+                  zip -r "CPP_ECS_ARPG-${GITHUB_REF_NAME}-${{ runner.os }}.zip" dist/CPP_ECS_ARPG
+
+            - name: Package (Windows)
+              if: runner.os == 'Windows'
+              shell: pwsh
+              run: |
+                  New-Item -ItemType Directory -Force -Path dist\CPP_ECS_ARPG | Out-Null
+
+                  if (Test-Path "build/release/gs_app.exe") {
+                    Copy-Item "build/release/gs_app.exe" "dist\CPP_ECS_ARPG\"
+                  } else {
+                    Write-Error "Expected app binary not found (build/release/gs_app.exe)."
+                  }
+
+                  if (Test-Path "README.md") { Copy-Item "README.md" "dist\CPP_ECS_ARPG\" }
+                  if (Test-Path "LICENSE")   { Copy-Item "LICENSE"   "dist\CPP_ECS_ARPG\" }
+
+                  Compress-Archive -Path "dist\CPP_ECS_ARPG\*" -DestinationPath "CPP_ECS_ARPG-$env:GITHUB_REF_NAME-${{ runner.os }}.zip" -Force
+
+            - name: Upload zip artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: CPP_ECS_ARPG-${{ github.ref_name }}-${{ runner.os }}
+                  path: CPP_ECS_ARPG-${{ github.ref_name }}-${{ runner.os }}.zip
+                  if-no-files-found: error
+
+    release:
+        name: GitHub Release
+        needs: build-test-package
+        runs-on: ubuntu-latest
+        steps:
+            - name: Download all zips
+              uses: actions/download-artifact@v4
+              with:
+                  path: artifacts
+
+            - name: Create/Update Release (attach zips)
+              uses: softprops/action-gh-release@v2
+              with:
+                  files: |
+                      artifacts/**/**/*.zip

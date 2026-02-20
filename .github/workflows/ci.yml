@@ -1,67 +1,75 @@
 name: ci
+
 on:
   push:
-    branches: [main, ci-test]
+    branches: ["**"]
   pull_request:
-    branches: [main]
+    branches: ["**"]
+
 jobs:
+  lint:
+    name: Lint (clang-format)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format
+
+      - name: clang-format check
+        shell: bash
+        run: |
+          files=$(git ls-files \
+            "src/*.c" "src/*.cc" "src/*.cpp" "src/*.h" "src/*.hpp" \
+            "tests/*.c" "tests/*.cc" "tests/*.cpp" "tests/*.h" "tests/*.hpp" \
+            2>/dev/null || true)
+
+          if [ -z "$files" ]; then
+            echo "No matching source files found for clang-format check."
+            exit 0
+          fi
+
+          clang-format -n -Werror $files
+
   build-test:
+    name: Build & Test (${{ matrix.os }})
+    needs: lint
     strategy:
       fail-fast: false
       matrix:
-        include:
-          # Linux builds (GCC + Clang)
-          - os: ubuntu-latest
-            cxx: g++
-            cc: gcc
-          - os: ubuntu-latest
-            cxx: clang++
-            cc: clang
-
-          # Windows build (MSVC)
-          - os: windows-2022
-            cxx: cl
-            cc: cl
-
+        os: [ubuntu-latest, windows-2022]
     runs-on: ${{ matrix.os }}
 
     steps:
       - uses: actions/checkout@v4
 
-      # Ninja is not guaranteed everywhere; install it explicitly.
       - name: Setup Ninja
         uses: seanmiddleditch/gha-setup-ninja@v5
 
-      # CMake is already available on GitHub-hosted runners, but keeping your step is fine.
       - name: Setup CMake
         uses: jwlawson/actions-setup-cmake@v2
 
-      # Linux: install compilers (needed for clang job)
       - name: Install Linux toolchain
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          if [ "${{ matrix.cc }}" = "clang" ]; then
-            sudo apt-get install -y clang
-          else
-            sudo apt-get install -y gcc g++
-          fi
+          sudo apt-get install -y gcc g++
 
-      # Windows: initialize MSVC environment (sets cl/link/lib paths)
       - name: Setup MSVC Dev Cmd
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
 
-      # Configure
-      - name: Configure (Linux)
+      - name: Configure (Linux / GCC)
         if: runner.os == 'Linux'
         shell: bash
         run: |
           cmake -S . -B build/ci -G Ninja \
             -DGS_ENABLE_TESTS=ON \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_C_COMPILER=${{ matrix.cc }} \
-            -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
+            -DCMAKE_C_COMPILER=gcc \
+            -DCMAKE_CXX_COMPILER=g++
 
       - name: Configure (Windows / MSVC)
         if: runner.os == 'Windows'
@@ -71,7 +79,6 @@ jobs:
             -DGS_ENABLE_TESTS=ON `
             -DCMAKE_BUILD_TYPE=Release
 
-      # Build (single-config Ninja => no --config)
       - name: Build
         shell: bash
         if: runner.os == 'Linux'
@@ -82,10 +89,9 @@ jobs:
         shell: pwsh
         run: cmake --build build/ci
 
-      # Test
       - name: Test
-        if: runner.os == 'Linux'
         shell: bash
+        if: runner.os == 'Linux'
         run: ctest --test-dir build/ci --output-on-failure
 
       - name: Test (Windows)
