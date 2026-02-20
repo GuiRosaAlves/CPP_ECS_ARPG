@@ -1,14 +1,17 @@
 {
-  "version": 6,
+  "version": 8,
   "cmakeMinimumRequired": { "major": 3, "minor": 24, "patch": 0 },
-
   "configurePresets": [
     {
       "name": "win-debug",
       "displayName": "Windows Debug",
+      "description": "Using compilers for Visual Studio 16 2019 (x64 architecture)",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/win-debug",
       "cacheVariables": {
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/build/install/${presetName}",
+        "CMAKE_C_COMPILER": "cl.exe",
+        "CMAKE_CXX_COMPILER": "cl.exe",
         "CMAKE_BUILD_TYPE": "Debug",
         "GS_ENABLE_TESTS": "ON"
       },
@@ -24,6 +27,9 @@
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/win-release",
       "cacheVariables": {
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/build/install/${presetName}",
+        "CMAKE_C_COMPILER": "cl.exe",
+        "CMAKE_CXX_COMPILER": "cl.exe",
         "CMAKE_BUILD_TYPE": "Release",
         "GS_ENABLE_TESTS": "ON"
       },
@@ -39,6 +45,7 @@
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/linux-debug",
       "cacheVariables": {
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/build/install/${presetName}",
         "CMAKE_BUILD_TYPE": "Debug",
         "GS_ENABLE_TESTS": "ON"
       },
@@ -54,6 +61,7 @@
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/linux-release",
       "cacheVariables": {
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/build/install/${presetName}",
         "CMAKE_BUILD_TYPE": "Release",
         "GS_ENABLE_TESTS": "ON"
       },
@@ -64,14 +72,28 @@
       }
     }
   ],
-
   "buildPresets": [
-    { "name": "win-debug", "configurePreset": "win-debug" },
-    { "name": "win-release", "configurePreset": "win-release" },
-    { "name": "linux-debug", "configurePreset": "linux-debug" },
-    { "name": "linux-release", "configurePreset": "linux-release" }
+    {
+      "name": "win-debug",
+      "configurePreset": "win-debug",
+      "configuration": "Debug"
+    },
+    {
+      "name": "win-release",
+      "configurePreset": "win-release",
+      "configuration": "Release"
+    },
+    {
+      "name": "linux-debug",
+      "configurePreset": "linux-debug",
+      "configuration": "Debug"
+    },
+    {
+      "name": "linux-release",
+      "configurePreset": "linux-release",
+      "configuration": "Release"
+    }
   ],
-
   "testPresets": [
     {
       "name": "win-debug",
