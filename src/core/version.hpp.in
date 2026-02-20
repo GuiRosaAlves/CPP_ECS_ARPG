@@ -1,0 +1,9 @@
+#pragma once
+
+namespace gs::build
+{
+    inline constexpr const char *kVersion = "@PROJECT_VERSION@";
+    inline constexpr const char *kGitRef = "@GS_GIT_REF@";
+    inline constexpr const char *kGitSha = "@GS_GIT_SHA@";
+    inline constexpr const char *kBuildType = "@CMAKE_BUILD_TYPE@";
+}

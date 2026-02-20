@@ -22,6 +22,7 @@ add_executable(gs_tests
   ui/format/test_console_renderer.cpp
 )
 
+target_include_directories(gs_tests PRIVATE ${CMAKE_BINARY_DIR}/generated)
 target_include_directories(gs_tests PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/../src
 )
