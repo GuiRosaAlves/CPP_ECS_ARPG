@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.24)
 
 # ---------- Versioning ----------
-set(GS_VERSION "0.0.0" CACHE STRING "CPP_ECS_ARPG version (e.g. 1.2.3 or 1.2.3+sha)")
+set(GS_VERSION "0.0.0" CACHE STRING "CPP_ECS_ARPG project version (numeric: MAJOR.MINOR.PATCH)")
 project(CPP_ECS_ARPG VERSION ${GS_VERSION} LANGUAGES CXX)
 message(STATUS "CPP_ECS_ARPG version: ${PROJECT_VERSION}")
 

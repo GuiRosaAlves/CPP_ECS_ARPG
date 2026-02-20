@@ -44,7 +44,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER=gcc \
             -DCMAKE_CXX_COMPILER=g++ \
-            -DGS_VERSION="0.0.0+${GITHUB_SHA:0:7}" \
+            -DGS_VERSION="0.0.0" \
             -DGS_GIT_REF="${GITHUB_REF}" \
             -DGS_GIT_SHA="${GITHUB_SHA}"
 
@@ -55,7 +55,7 @@ jobs:
           cmake -S . -B out/build/ci -G Ninja `
             -DGS_ENABLE_TESTS=ON `
             -DCMAKE_BUILD_TYPE=Release `
-            -DGS_VERSION="0.0.0+$short" `
+            -DGS_VERSION="0.0.0" `
             -DGS_GIT_REF="$env:GITHUB_REF" `
             -DGS_GIT_SHA="$env:GITHUB_SHA"
 
